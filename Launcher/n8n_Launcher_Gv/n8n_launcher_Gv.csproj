@@ -1,0 +1,93 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>n8n_launcher_Gv</RootNamespace>
+    <AssemblyName>n8n_launcher_Gv</AssemblyName>
+    <ApplicationIcon>icon\app_icon.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.6" />
+    <PackageReference Include="WPF-UI" Version="4.3.0" />
+    <PackageReference Include="WPF-UI.Tray" Version="4.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="icon\logo_light.png" />
+    <Resource Include="icon\logo_dark.png" />
+    <Resource Include="icon\n8n_launcher.png" />
+    <Resource Include="icon\n8n_launcher.ico" />
+    <Resource Include="icon\app_icon.ico" />
+    <Resource Include="..\icon\launch\Stop.png">
+      <Link>icon\launch\Stop.png</Link>
+    </Resource>
+    <Resource Include="..\icon\launch\restart.png">
+      <Link>icon\launch\restart.png</Link>
+    </Resource>
+    <!--
+      注：这里刻意只注册 port.png，不注册 port.svg。
+      WPF 不支持 SVG 格式，把 svg 登记为 <Resource> 只会白占 exe 体积且永远不会被读取
+      （MainWindow.xaml 中引用的是 "icon/launch/port.png"）。
+      Launcher\icon\launch\port.svg 仅作为设计源文件保留在仓库中，不参与编译。
+    -->
+    <Resource Include="..\icon\launch\port.png">
+      <Link>icon\launch\port.png</Link>
+    </Resource>
+    <!--
+      关于页主卡片背景图：位于仓库根 icon/ 目录（与 launch 子目录同级），
+      通过 <Link> 映射到 XAML 中使用的 "icon/about.png" 路径，
+      与 launch/Stop.png 等外置资源的注册方式保持一致。
+    -->
+    <Resource Include="..\icon\about.png">
+      <Link>icon\about.png</Link>
+    </Resource>
+    <!-- 启动页"开始运行"按钮 360 度旋转渐变描边 PNG（用户设计素材） -->
+    <Resource Include="..\icon\launch\渐变色.png">
+      <Link>icon\launch\渐变色.png</Link>
+    </Resource>
+
+    <!--
+      内嵌中文字体（思源黑体 CN），SIL OFL 1.1 许可，商用+内嵌+开源分发合规。
+      作用：为无中文字体的海外 Windows 提供中文兜底显示（避免"豆腐块"）；
+            国内 Windows 因回退链优先命中系统 Microsoft YaHei UI，不受影响。
+      LICENSE 全文见 Assets\Fonts\LICENSE-OFL.txt（分发必需，请勿删除）。
+    -->
+    <Resource Include="Assets\Fonts\SourceHanSansCN-Regular.otf" />
+    <Resource Include="Assets\Fonts\SourceHanSansCN-Bold.otf" />
+    <None Include="Assets\Fonts\LICENSE-OFL.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <!--
+      内存优化（2026-08-07）：单文件压缩关闭 + ReadyToRun 开启。
+        · EnableCompressionInSingleFile=false：
+          压缩单文件在启动时必须把所有程序集解压进堆内存，这部分是「私有提交内存」，
+          不可共享、不可丢弃，内嵌资源（思源黑体 16MB、渐变色.png 等）也一并常驻。
+          关闭后程序集以文件映射（file-backed）方式加载，未访问的页面不进物理内存，
+          系统内存紧张时可直接丢弃而无需写 pagefile。代价：exe 体积增大（磁盘换内存）。
+        · PublishReadyToRun=true：
+          预编译原生代码同样走文件映射，替代运行时 JIT 产生的私有提交内存，并加快启动。
+      注意：思源黑体 Regular/Bold 两份必须保留 —— 功能页标题为粗体中文，
+            海外无中文字体机器上是第一眼可见位置，合成加粗会明显发虚。
+            关闭压缩后它们在国内机器上几乎不会被换入物理内存，无需删除。
+    -->
+    <EnableCompressionInSingleFile>false</EnableCompressionInSingleFile>
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <PublishReadyToRun>true</PublishReadyToRun>
+  </PropertyGroup>
+
+</Project>

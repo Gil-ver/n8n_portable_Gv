@@ -1,0 +1,140 @@
+<Application x:Class="n8n_launcher_Gv.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+             Startup="Application_Startup">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ui:ThemesDictionary Theme="Light" />
+                <ui:ControlsDictionary />
+                <ResourceDictionary Source="RocketArt.xaml" />
+                <ResourceDictionary Source="FireArt.xaml" />
+                <ResourceDictionary Source="CloudArt.xaml" />
+                <ResourceDictionary Source="Planet1Art.xaml" />
+                <ResourceDictionary Source="Planet2Art.xaml" />
+                <ResourceDictionary Source="Planet3Art.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <!--
+                ═════════════════════════════════════════════════════════════════
+                全局字体回退链  LauncherFontFamily
+                ─────────────────────────────────────────────────────────────────
+                目标：让启动器在任意语种的 Win10/11 上都能正常显示中英文，
+                      同时保证国内主流环境（有微软雅黑）视觉与原来 100% 一致。
+
+                回退顺序（WPF 会按序尝试，遇到本地或内嵌命中即停）：
+                  1. Segoe UI                       —— 英文/数字/标点主字体（Win10/11 全部预装）
+                  2. Microsoft YaHei UI / 微软雅黑  —— 中文主字体，几乎所有中文/繁体 Windows 都有
+                  3. 内嵌 Source Han Sans CN         —— 海外无中文字体系统的兜底，避免"豆腐块"
+                                                        （SIL OFL 1.1，见 Assets\Fonts\LICENSE-OFL.txt）
+                  4. Segoe UI Emoji                  —— Emoji 兜底（Win10/11 预装）
+                                                        必须排在最后！若排在雅黑之前，WPF 会把它当作
+                                                        "能渲染任意字符" 的通用字体，直接接管中文渲染，
+                                                        导致汉字被 fallback 到内嵌思源，出现"整体字体变成思源"的现象。
+                                                        对于个别会踩几何符号 emoji 坑的字符（如 ▶），
+                                                        在具体 TextBlock 上单独设置 FontFamily="Segoe UI Emoji"。
+
+                关键点：
+                  · 内嵌字体路径 URI 中的 assembly 名必须与 csproj 的 <AssemblyName> 完全一致
+                    （当前工程 = n8n_launcher_Gv，注意 launcher 小写 l）。
+                  · "#Source Han Sans CN" 是字体 name 表里的 family 名（nameID=16），
+                    Regular / Bold 两个字重共享同一 family，WPF 会按 FontWeight 自动挑对应文件。
+                  · Microsoft YaHei UI 并未随启动器分发，仅"若系统有则优先使用"——不构成侵权。
+                    真正随包分发的中文字体只有 Source Han Sans CN（OFL 授权，商用/内嵌/开源均合规）。
+                ═════════════════════════════════════════════════════════════════
+            -->
+            <FontFamily x:Key="LauncherFontFamily">Segoe UI, Microsoft YaHei UI, 微软雅黑, pack://application:,,,/n8n_launcher_Gv;component/Assets/Fonts/#Source Han Sans CN, Segoe UI Emoji</FontFamily>
+
+            <!--
+                ⚠️ 注意：不能在这里给 ui:FluentWindow / Window 挂"无 BasedOn 的隐式 Style"
+                （即使只 Setter FontFamily），否则会替换掉 wpfui 库自带的 FluentWindow 默认
+                Style（含 ControlTemplate），导致启动后整个界面消失只剩底层毛玻璃。
+                改为在 MainWindow.xaml 根节点上直接写 FontFamily="{StaticResource LauncherFontFamily}"，
+                FontFamily 是 inherited property，从根节点一路继承下去即可。
+            -->
+
+            <!--
+                全局 TextBox 右键菜单
+                ─────────────────────
+                两个变体（按控件情况挑选一个 StaticResource 使用即可）：
+                  · TextBoxContextMenu          —— 完整 4 项（剪切 / 复制 / 粘贴 / 全选），可编辑 TextBox 用。
+                  · ReadOnlyTextBoxContextMenu  —— 精简 2 项（复制 / 全选），IsReadOnly="True" 的 TextBox 用。
+
+                设计要点：
+                  · 不再绑定 ApplicationCommands.*，改用 Click 处理器（在 App.xaml.cs 中通过 PlacementTarget 找回目标 TextBox）。
+                    —— 因为绑定 ApplicationCommands 时，即使 InputGestureText="" 也会回退到 KeyGesture.DisplayString，
+                       导致右侧仍显示 "Ctrl+X/C/V/A"。改用 Click 后彻底不显示快捷键提示列。
+                  · 键盘 Ctrl+X/C/V/A 依然有效：TextBox 内建 InputBindings，与本菜单是否绑 Command 无关。
+                  · x:Shared="False"：每次引用返回新实例，避免多 TextBox 共用同一 ContextMenu 引发的 PlacementTarget 抢占。
+                  · FontFamily 显式指定 Microsoft YaHei UI，避免 TextBox 若使用 Consolas，中文 fallback 到宋体导致字形变瘦。
+                  · Header 结构：中文字号 13 + 英文字号 9.75（= 13 × 75%），英文 BaselineAlignment="Baseline"
+                    —— 让 (Copy) 等英文小字与"复制"等中文字符按排版基线（底线）对齐。
+            -->
+
+            <!-- 完整版：剪切 / 复制 / 粘贴 / ─── / 全选 -->
+            <!-- Width=108 DIP：150% DPI 下约 162 物理px（原 210px 缩短约 50px），
+                 若需要微调宽度，仅改这一处 Width / MinWidth 即可；同步修改下方 ReadOnly 版保持一致。 -->
+            <ContextMenu x:Key="TextBoxContextMenu"
+                         x:Shared="False"
+                         FontFamily="{StaticResource LauncherFontFamily}"
+                         FontSize="13"
+                         Width="108"
+                         MinWidth="108">
+                <MenuItem Click="TextBoxContextMenu_Cut_Click">
+                    <MenuItem.Header>
+                        <TextBlock>
+                            <Run Text="剪切"/><Run Text=" (Cut)" FontSize="9.75" BaselineAlignment="Baseline"/>
+                        </TextBlock>
+                    </MenuItem.Header>
+                </MenuItem>
+                <MenuItem Click="TextBoxContextMenu_Copy_Click">
+                    <MenuItem.Header>
+                        <TextBlock>
+                            <Run Text="复制"/><Run Text=" (Copy)" FontSize="9.75" BaselineAlignment="Baseline"/>
+                        </TextBlock>
+                    </MenuItem.Header>
+                </MenuItem>
+                <MenuItem Click="TextBoxContextMenu_Paste_Click">
+                    <MenuItem.Header>
+                        <TextBlock>
+                            <Run Text="粘贴"/><Run Text=" (Paste)" FontSize="9.75" BaselineAlignment="Baseline"/>
+                        </TextBlock>
+                    </MenuItem.Header>
+                </MenuItem>
+                <Separator/>
+                <MenuItem Click="TextBoxContextMenu_SelectAll_Click">
+                    <MenuItem.Header>
+                        <TextBlock>
+                            <Run Text="全选"/><Run Text=" (Select All)" FontSize="9.75" BaselineAlignment="Baseline"/>
+                        </TextBlock>
+                    </MenuItem.Header>
+                </MenuItem>
+            </ContextMenu>
+
+            <!-- 只读版：复制 / 全选 -->
+            <ContextMenu x:Key="ReadOnlyTextBoxContextMenu"
+                         x:Shared="False"
+                         FontFamily="{StaticResource LauncherFontFamily}"
+                         FontSize="13"
+                         Width="108"
+                         MinWidth="108">
+                <MenuItem Click="TextBoxContextMenu_Copy_Click">
+                    <MenuItem.Header>
+                        <TextBlock>
+                            <Run Text="复制"/><Run Text=" (Copy)" FontSize="9.75" BaselineAlignment="Baseline"/>
+                        </TextBlock>
+                    </MenuItem.Header>
+                </MenuItem>
+                <MenuItem Click="TextBoxContextMenu_SelectAll_Click">
+                    <MenuItem.Header>
+                        <TextBlock>
+                            <Run Text="全选"/><Run Text=" (Select All)" FontSize="9.75" BaselineAlignment="Baseline"/>
+                        </TextBlock>
+                    </MenuItem.Header>
+                </MenuItem>
+            </ContextMenu>
+
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

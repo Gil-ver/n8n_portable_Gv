@@ -1,0 +1,63 @@
+# ============================================================
+# .gitignore —— 告诉 Git 哪些文件永远不要上传
+# 下面每一行都是一条「黑名单」规则，Git 会自动跳过匹配的文件/目录
+# ============================================================
+
+# ---------- 编译产物（别人自己编译就有，不需要传） ----------
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+publish/
+portable-single/
+*.dll
+*.exe
+*.pdb
+
+# ---------- Visual Studio 缓存与个人设置 ----------
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.pubxml.user
+
+# ---------- 发布配置文件 ----------
+# FolderProfile.pubxml 里的 SelfContained=false 与 csproj 的 true 冲突，
+# 若被他人误用会产出依赖 .NET 运行时的 exe，破坏便携特性，故不纳入仓库。
+# 正确的发布方式：使用仓库根目录的「导出单个启动器exe.bat」或直接 dotnet publish。
+Properties/PublishProfiles/
+*.pubxml
+
+# ---------- Rider / VS Code 个人配置 ----------
+.idea/
+.vscode/
+
+# ---------- NuGet ----------
+packages/
+*.nupkg
+project.lock.json
+project.assets.json
+
+# ---------- 调试期临时脚本与临时文档 ----------
+tmp_*.py
+tmp_*.txt
+temp_*.txt
+
+# ---------- 内部开发笔记（不公开） ----------
+PROJECT_SUMMARY.txt
+后续更新.txt
+性能优化.txt
+AGENTS.md
+
+# ---------- 便携包运行时与用户数据（不属于本仓库） ----------
+app/
+data/
+runtime/
+node_modules/
+*.tar
+
+# ---------- 系统垃圾文件 ----------
+Thumbs.db
+desktop.ini
+.DS_Store
