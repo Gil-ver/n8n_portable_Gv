@@ -2,7 +2,7 @@
 
 本项目（**n8n 便携整合包 / n8n Portable Gv**）中，**仅启动器（n8n Launcher Gv）为本人原创作品，采用 MIT 协议开源**（详见 [LICENSE](./LICENSE)）。
 
-整合包内集成的 n8n、Node.js、Python、FFmpeg 等第三方软件，**版权均归各自作者所有，并遵循其原有的许可协议**。本项目未对上述任何组件的许可条款作出修改、扩展或限制。
+整合包内集成的 n8n、Node.js、Python（WinPython 发行版）、FFmpeg 等第三方软件，**版权均归各自作者所有，并遵循其原有的许可协议**。本项目未对上述任何组件的许可条款作出修改、扩展或限制。
 
 > 本项目为**非商业性质**，永久免费提供，不进行任何形式的转售，亦不以托管服务（SaaS）形式向第三方提供 n8n。
 
@@ -82,7 +82,11 @@ Node.js 随附的 `npm`、`corepack`、`asar` 等附属包，其许可原文分�
 
 ---
 
-### 4. Python
+### 4. Python（WinPython 发行版）
+
+整合包内的 Python 采用 **WinPython** 免安装发行版，其中包含 CPython 解释器本体与一套打包工具。二者版权与许可不同，分列如下。
+
+**4.1 CPython（解释器本体）**
 
 | 项目 | 内容 |
 |---|---|
@@ -90,8 +94,21 @@ Node.js 随附的 `npm`、`corepack`、`asar` 等附属包，其许可原文分�
 | 版权归属 | Python Software Foundation |
 | 官方主页 | https://www.python.org |
 | 源码仓库 | https://github.com/python/cpython |
-| 许可原文位置 | 整合包内 `runtime/python/python/LICENSE.txt`、`runtime/python/license.txt` |
+| 许可原文位置 | 整合包内 `runtime/python/python/LICENSE.txt` |
+| 权威版本来源 | 整合包内执行 `runtime/python/python/python.exe --version` |
 | 本文档撰写时随附版本 | 3.13.13 |
+
+**4.2 WinPython（发行版打包）**
+
+| 项目 | 内容 |
+|---|---|
+| 许可协议 | **MIT License**（WinPython License Agreement） |
+| 版权归属 | Pierre Raybaut (2012)、WinPython team (2016+) |
+| 官方主页 | https://winpython.github.io |
+| 源码仓库 | https://github.com/winpython/winpython |
+| 许可原文位置 | 整合包内 `runtime/python/license.txt` |
+
+WinPython 自身声明：其收录的各组件"均按从版权持有人处获得的原样分发，遵循各自的版权与许可"。本项目未对 WinPython 的打包结构或其中任何组件作出修改。
 
 整合包内预装的 Python 第三方库（如 `yt-dlp`、`requests`、`browser-cookie3` 等）均遵循其各自的开源许可协议，许可原文位于 `runtime/python/python/Lib/site-packages/` 下各自的包目录内。
 
@@ -128,4 +145,4 @@ Node.js 随附的 `npm`、`corepack`、`asar` 等附属包，其许可原文分�
 
 ---
 
-*最后更新：2026-08-08*
+*最后更新：2026-08-10*

@@ -184,4 +184,4 @@ This bundle is non-commercial and permanently free. It is not resold, and it doe
 
 ## 🌹 Acknowledgements
 
-[n8n](https://n8n.io) · [Node.js](https://nodejs.org) · [Python](https://www.python.org) · [FFmpeg](https://ffmpeg.org) · [WPF-UI](https://github.com/lepoco/wpfui) · [Source Han Sans](https://github.com/adobe-fonts/source-han-sans)
+[n8n](https://n8n.io) · [Node.js](https://nodejs.org) · [Python](https://www.python.org) · [WinPython](https://winpython.github.io) · [FFmpeg](https://ffmpeg.org) · [WPF-UI](https://github.com/lepoco/wpfui) · [Source Han Sans](https://github.com/adobe-fonts/source-han-sans)

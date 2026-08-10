@@ -184,4 +184,4 @@ n8n 本身的用法问题（节点怎么配、表达式怎么写）建议去 [n8
 
 ## 🌹 致谢
 
-[n8n](https://n8n.io) · [Node.js](https://nodejs.org) · [Python](https://www.python.org) · [FFmpeg](https://ffmpeg.org) · [WPF-UI](https://github.com/lepoco/wpfui) · [Source Han Sans](https://github.com/adobe-fonts/source-han-sans)
+[n8n](https://n8n.io) · [Node.js](https://nodejs.org) · [Python](https://www.python.org) · [WinPython](https://winpython.github.io) · [FFmpeg](https://ffmpeg.org) · [WPF-UI](https://github.com/lepoco/wpfui) · [Source Han Sans](https://github.com/adobe-fonts/source-han-sans)
