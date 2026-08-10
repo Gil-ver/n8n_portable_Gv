@@ -1,6 +1,6 @@
 <div align="right">
 
-[简体中文](./README.md) · **English**
+**English** · [简体中文](./README.md)
 
 </div>
 
@@ -26,13 +26,13 @@ Everything lives inside this one folder. No registry entries, no system services
 
 ---
 
-## Why this exists
+## 🤔 Why this exists
 
 Running n8n on Windows takes more setup than it should, and the pieces end up scattered. The official routes are npm and Docker. With npm you install Node.js first, sort out your PATH, then run `npx n8n` from a terminal. Docker Desktop works but asks for a WSL2 backend and a fair amount of RAM just to keep a single service alive. Either way the parts live in different places: Node.js under Program Files, n8n's data in `.n8n` inside your user profile. Move to another machine and you repeat the whole thing, then hunt down your existing workflows and credentials by hand.
 
 So I collected all of it into a single folder. Unzip it and it runs; delete the folder and it is gone, cleanly. Python and FFmpeg are bundled too, so workflows can call scripts and process audio and video without extra installs. The launcher handles starting and stopping n8n, its configuration, and its execution history, so you never have to touch a command line.
 
-## Getting started
+## 📥 Getting started
 
 Download the archive from [Releases](https://github.com/Gil-ver/n8n_portable_Gv/releases), then:
 
@@ -42,7 +42,7 @@ Download the archive from [Releases](https://github.com/Gil-ver/n8n_portable_Gv/
 
 No installation, no administrator rights.
 
-## What's inside
+## 📦 What's inside
 
 | Component | Purpose |
 |---|---|
@@ -54,11 +54,11 @@ No installation, no administrator rights.
 
 Component versions, licenses and where to obtain their sources are listed in [THIRD_PARTY_LICENSES.md](./THIRD_PARTY_LICENSES.md).
 
-## Let AI build your workflows
+## 🤖 Let AI build your workflows
 
 The bundle ships with `AGENTS.md`, an operating manual written for AI assistants. Hand it over along with your n8n address and API key to Claude Code, Cursor, Codex, Opencode, or an AI extension inside VS Code, and the assistant can create and modify workflows directly through the n8n REST API.
 
-## The launcher
+## 🚀 The launcher
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/interface-dark.png">
@@ -84,7 +84,7 @@ The bundle ships with `AGENTS.md`, an operating manual written for AI assistants
 The launcher is the only original piece in the bundle. It is MIT licensed, with source under `Launcher/` in this repo.
 
 <details>
-<summary><b>Building the launcher yourself</b></summary>
+<summary><b>🔨 Building the launcher yourself</b></summary>
 
 Requires Windows 10 1809+ (x64) and the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0).
 
@@ -105,7 +105,7 @@ Drop the resulting exe over `n8n_launcher_Gv.exe` in the bundle root and it take
 </details>
 
 <details>
-<summary><b>Launcher source layout</b></summary>
+<summary><b>🗂️ Launcher source layout</b></summary>
 
 ```
 Launcher/
@@ -132,7 +132,7 @@ Keep the `Launcher/` level intact. The csproj reaches the parent directory's `La
 </details>
 
 <details>
-<summary><b>Tech stack</b></summary>
+<summary><b>⚙️ Tech stack</b></summary>
 
 | Item | Details |
 |---|---|
@@ -146,7 +146,7 @@ Two deliberate departures from the defaults. Single-file compression is off (`En
 
 </details>
 
-## Notes
+## ⚠️ Notes
 
 | Topic | Details |
 |---|---|
@@ -158,7 +158,7 @@ Two deliberate departures from the defaults. Single-file compression is off (`En
 
 Full usage notes are in `README.txt` inside the bundle.
 
-## Feedback
+## 💬 Feedback
 
 Bugs, problems and feature suggestions are welcome in [Issues](https://github.com/Gil-ver/n8n_portable_Gv/issues).
 
@@ -172,7 +172,7 @@ If you are not comfortable describing technical details, just say what went wron
 
 For questions about n8n itself, such as configuring nodes or writing expressions, the [n8n community forum](https://community.n8n.io) is a better place with far more people to help. This repo covers the bundle and the launcher only.
 
-## License
+## 📄 License
 
 - **Launcher source**: [MIT](./LICENSE), free to use, modify and redistribute
 - **Bundled Source Han Sans**: SIL OFL 1.1, keep `Assets/Fonts/LICENSE-OFL.txt` when redistributing
@@ -182,6 +182,6 @@ Note in particular that n8n uses the **Sustainable Use License** (fair-code, not
 
 This bundle is non-commercial and permanently free. It is not resold, and it does not offer n8n as a hosted service.
 
-## Acknowledgements
+## 🌹 Acknowledgements
 
 [n8n](https://n8n.io) · [Node.js](https://nodejs.org) · [Python](https://www.python.org) · [FFmpeg](https://ffmpeg.org) · [WPF-UI](https://github.com/lepoco/wpfui) · [Source Han Sans](https://github.com/adobe-fonts/source-han-sans)

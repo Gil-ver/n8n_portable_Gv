@@ -1,6 +1,6 @@
 <div align="right">
 
-**简体中文** · [English](./README.en.md)
+[English](./README.en.md) · **简体中文**
 
 </div>
 
@@ -26,13 +26,13 @@ n8n_portable_Gv/
 
 ---
 
-## 为什么做这个
+## 🤔 为什么做这个
 
 在 Windows 上安装使用 n8n 十分复杂，数据又分散。官方只提供 npm 和 Docker 两种安装方式，前者需要先装 Node.js，配好环境变量，再开命令行敲 `npx n8n`。装完之后各个组件是分开的：Node.js 在 Program Files，n8n 的数据在用户目录的 `.n8n` 下。换台电脑就得把整套流程重做一遍，已有的工作流和凭据也要手动找出来迁移。
 
 所以我把这些都整理收录进了一个文件夹，解压即可使用，删掉文件夹相当于卸载干净。另外内置了 Python 和 FFmpeg，工作流可以直接调用脚本、处理音视频。启动器是专门来管理 n8n 的启停、配置和执行记录，不必再跟命令行打交道。
 
-## 下载使用
+## 📥 下载使用
 
 到 [Releases](https://github.com/Gil-ver/n8n_portable_Gv/releases) 下载压缩包，然后：
 
@@ -42,7 +42,7 @@ n8n_portable_Gv/
 
 无需安装，无需管理员权限。
 
-## 包含哪些部件
+## 📦 包含哪些部件
 
 | 部件 | 作用 |
 |---|---|
@@ -54,11 +54,11 @@ n8n_portable_Gv/
 
 各组件的版本、许可协议与源码获取途径见 [THIRD_PARTY_LICENSES.md](./THIRD_PARTY_LICENSES.md)。
 
-## 让 AI 帮你搭建工作流
+## 🤖 让 AI 帮你搭建工作流
 
 包内附带 `AGENTS.md`，是一份面向 AI 助手的操作手册。把它连同你的 n8n 地址和 API Key 交给 Claude Code、Cursor、Codex、Opencode，甚至 VS Code 中的 AI 插件，AI 就能通过 n8n REST API 直接创建和修改工作流。
 
-## 启动器
+## 🚀 启动器
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/interface-dark.png">
@@ -84,7 +84,7 @@ n8n_portable_Gv/
 启动器是整合包里唯一原创的部分，以 MIT 协议开源，源码在本仓库的 `Launcher/` 目录下。
 
 <details>
-<summary><b>自己编译启动器</b></summary>
+<summary><b>🔨 自己编译启动器</b></summary>
 
 需要 Windows 10 1809+ (x64) 与 [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)。
 
@@ -105,7 +105,7 @@ dotnet publish -c Release -o publish
 </details>
 
 <details>
-<summary><b>启动器源码结构</b></summary>
+<summary><b>🗂️ 启动器源码结构</b></summary>
 
 ```
 Launcher/
@@ -132,7 +132,7 @@ Launcher/
 </details>
 
 <details>
-<summary><b>技术栈</b></summary>
+<summary><b>⚙️ 技术栈</b></summary>
 
 | 项 | 说明 |
 |---|---|
@@ -146,7 +146,7 @@ Launcher/
 
 </details>
 
-## 注意事项
+## ⚠️ 注意事项
 
 | 事项 | 说明 |
 |---|---|
@@ -158,7 +158,7 @@ Launcher/
 
 完整使用须知见整合包内的 `README.txt`。
 
-## 反馈
+## 💬 反馈
 
 使用中遇到问题、发现 Bug，或者有功能建议，欢迎到 [Issues](https://github.com/Gil-ver/n8n_portable_Gv/issues) 提出。
 
@@ -172,7 +172,7 @@ Launcher/
 
 n8n 本身的用法问题（节点怎么配、表达式怎么写）建议去 [n8n 官方社区](https://community.n8n.io) 提问，那边有很多专业的人。本仓库只处理整合包与启动器相关的问题。
 
-## 许可
+## 📄 许可
 
 - **启动器源码**：[MIT](./LICENSE)，可自由使用、修改、再分发
 - **内嵌思源黑体**：SIL OFL 1.1，再分发时请保留 `Assets/Fonts/LICENSE-OFL.txt`
@@ -182,6 +182,6 @@ n8n 本身的用法问题（节点怎么配、表达式怎么写）建议去 [n8
 
 本整合包为非商业性质，永久免费，不转售，也不以托管服务形式提供 n8n。
 
-## 致谢
+## 🌹 致谢
 
 [n8n](https://n8n.io) · [Node.js](https://nodejs.org) · [Python](https://www.python.org) · [FFmpeg](https://ffmpeg.org) · [WPF-UI](https://github.com/lepoco/wpfui) · [Source Han Sans](https://github.com/adobe-fonts/source-han-sans)
