@@ -4,7 +4,11 @@
 
 </div>
 
-# n8n Portable Gv
+<p align="center">
+  <img src="Launcher/icon/n8n_launcher_Gv.png" width="72" alt="n8n Portable Gv">
+</p>
+
+<h1 align="center">n8n Portable Gv</h1>
 
 > A no-install, portable n8n bundle for Windows. Unzip and run.
 

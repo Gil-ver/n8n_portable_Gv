@@ -1,7 +1,7 @@
 {
-  "latest_version": "Gv_1.0.0",
-  "released_at": "2026-08-09",
+  "latest_version": "Gv_1.2.2",
+  "released_at": "2026-09-30",
   "download_url": "https://github.com/Gil-ver/n8n_portable_Gv/releases",
-  "release_notes": "首个公开版本",
+  "release_notes": "Gv_1.2.2 发布",
   "min_supported_version": "Gv_1.0.0"
 }

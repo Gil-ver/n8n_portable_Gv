@@ -4,7 +4,11 @@
 
 </div>
 
-# n8n 便携整合包 · n8n Portable Gv
+<p align="center">
+  <img src="Launcher/icon/n8n_launcher_Gv.png" width="72" alt="n8n Portable Gv">
+</p>
+
+<h1 align="center">n8n 便携整合包 · n8n Portable Gv</h1>
 
 > Windows 系统专用的 n8n 免安装整合包，解压即可使用。
 

@@ -24,13 +24,17 @@ namespace n8n_launcher_Gv;
 /// 简洁两层 WPF 托盘菜单：
 /// - 保留 Windows Forms NotifyIcon，只替换菜单显示层。
 /// - 只支持一级菜单 + 窗口缩放二级菜单，不做无限级递归。
+/// - 二级比例菜单横向位置：以一级菜单面板边缘为基准（右/左各留 4 DIP 间隙），右侧放不下就翻到左侧，绝不压住一级菜单。
 /// - 菜单独立于 AppDesignSurface，不参与主窗口 userScale 缩放。
 /// </summary>
 internal sealed class TrayPopupMenu : IDisposable
 {
-    // 150% DPI 下：一级菜单约 132 DIP ≈ 198px；二级菜单约 92 DIP ≈ 138px。
-    private const double MainMenuWidth = 132.0;
+    // 150% DPI 下：一级菜单 110.5 DIP ≈ 166px（文字↔✓ 空档与二级「100% ✓」一致的 17.9 DIP）；二级菜单约 92 DIP ≈ 138px。
+    private const double MainMenuWidth = 110.5;
     private const double ScaleMenuWidth = 92.0;
+    // 二级比例菜单与一级菜单面板之间的水平间隙（单位 DIP，换算物理像素要乘 DPI）。
+    // 150% DPI 下 4 DIP = 6px：能看出两块菜单是分开的，又不至于离得太远。
+    private const double ScaleMenuGap = 4.0;
     // Windows Defender 风格：150% DPI 下 32 DIP ≈ 48 物理像素响应高度。
     private const double ItemHeight = 32.0;
     private const double MenuPadding = 4.0;
@@ -161,6 +165,9 @@ internal sealed class TrayPopupMenu : IDisposable
         bool dark = IsSystemDarkMode();
         var panel = CreateMenuPanel();
 
+        // 「显示界面」提到最上方（比例切换之上）：托盘最常用的动作，单手即可点到。
+        AddActionItem(panel, "显示界面", dark, () => ShowRequested?.Invoke());
+
         var scaleItem = CreateMenuItem("比例切换", "›", dark, null);
         scaleItem.MouseEnter += (_, _) => OpenScaleMenuFrom(scaleItem);
         panel.Children.Add(scaleItem);
@@ -172,7 +179,6 @@ internal sealed class TrayPopupMenu : IDisposable
         AddActionItem(panel, "启动n8n", dark, () => StartN8nRequested?.Invoke(), enabled: !IsN8nRunning);
         AddActionItem(panel, "n8n网页", dark, () => OpenN8nWebRequested?.Invoke());
         panel.Children.Add(CreateSeparator(dark));
-        AddActionItem(panel, "显示界面", dark, () => ShowRequested?.Invoke());
         AddActionItem(panel, "彻底退出", dark, () => ExitRequested?.Invoke());
 
         return CreateMenuRoot(panel, MainMenuWidth, dark);
@@ -246,11 +252,15 @@ internal sealed class TrayPopupMenu : IDisposable
         bool dark = IsSystemDarkMode();
         var panel = CreateMenuPanel();
 
-        AddScaleItem(panel, "1倍", 1.0, dark);
-        AddScaleItem(panel, "0.75倍", 0.75, dark);
-        AddScaleItem(panel, "2/3倍", 0.6667, dark);
-        AddScaleItem(panel, "0.5倍", 0.5, dark);
-        AddScaleItem(panel, "1/3倍", 0.3333, dark);
+        // 档位固定在整十百分比阶梯上（100% / 75% / 60% / 50% / 40%）：
+        // 窗口尺寸 = 2160×1440 × 倍数，阈值按「目标屏工作区高度放得下且不浪费」标定：
+        //   1.0 → 2160×1440、0.75 → 1620×1080、0.6 → 1296×864、0.5 → 1080×720、0.4 → 864×576。
+        // 二级菜单宽 92 DIP，✓ 列边距压到 4/8 后选中行可用 40 DIP；最宽标签「100%」在系统默认字体（Microsoft YaHei UI 13 DIP）下实测 34.4 DIP，余量 5.6 DIP 不裁字。
+        AddScaleItem(panel, "100%", 1.0, dark);
+        AddScaleItem(panel, "75%", 0.75, dark);
+        AddScaleItem(panel, "60%", 0.6, dark);
+        AddScaleItem(panel, "50%", 0.5, dark);
+        AddScaleItem(panel, "40%", 0.4, dark);
 
         return CreateMenuRoot(panel, ScaleMenuWidth, dark);
     }
@@ -336,7 +346,7 @@ internal sealed class TrayPopupMenu : IDisposable
             FontWeight = FontWeights.SemiBold,
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
-            Margin = new Thickness(8, 0, 12, 1),
+            Margin = new Thickness(4, 0, 8, 1),
             Foreground = checkForeground
         };
         Grid.SetColumn(check, 1);
@@ -363,6 +373,8 @@ internal sealed class TrayPopupMenu : IDisposable
         return item;
     }
 
+    // 标记列（✓ / ›）边缘参数刻意与二级比例菜单 CreateScaleMenuItem 对齐：文字↔标记间隙 = 8(label 右) + 4(标记左) = 12 DIP，
+    // 标记右侧留白 8 DIP；主菜单外宽由 MainMenuWidth 固定 110.5 DIP，文字↔标记的视觉空档由该宽度决定（调上面两处边缘参数不会改变它）。
     private Border CreateMenuItem(string text, string? trailingText, bool dark, Action? clickAction, bool selected = false)
     {
         var normalBg = WpfBrushes.Transparent;
@@ -383,7 +395,7 @@ internal sealed class TrayPopupMenu : IDisposable
             Text = text,
             FontSize = 13,
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(12, 0, 12, 0),
+            Margin = new Thickness(12, 0, 8, 0),
             Foreground = foreground
         };
         Grid.SetColumn(label, 0);
@@ -397,7 +409,7 @@ internal sealed class TrayPopupMenu : IDisposable
                 FontSize = trailingText == "✓" ? 14 : 17,
                 FontWeight = trailingText == "✓" ? FontWeights.SemiBold : FontWeights.Normal,
                 VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(8, 0, 12, 1),
+                Margin = new Thickness(4, 0, 8, 1),
                 Foreground = selected ? new SolidColorBrush(WpfColor.FromRgb(0x4C, 0x9D, 0xFF)) : mutedForeground
             };
             Grid.SetColumn(trailing, 1);
@@ -445,27 +457,44 @@ internal sealed class TrayPopupMenu : IDisposable
 
         _scaleRoot.Measure(new WpfSize(double.PositiveInfinity, double.PositiveInfinity));
 
-        var topLeftPhysical = parentItem.PointToScreen(new WpfPoint(0, 0));
-        var rightTopPhysical = parentItem.PointToScreen(new WpfPoint(parentItem.ActualWidth - 2, 0));
-        var screen = System.Windows.Forms.Screen.FromPoint(new System.Drawing.Point((int)topLeftPhysical.X, (int)topLeftPhysical.Y));
-        var workArea = screen.WorkingArea;
         var dpi = GetDpiScale();
+        var itemTopLeftPhysical = parentItem.PointToScreen(new WpfPoint(0, 0));
 
+        // 二级菜单的位置一律以「一级菜单面板自身」的边缘为基准计算，不用菜单项边缘——
+        // 菜单项在面板内还缩进了 1(边框)+4(内边距) DIP，用菜单项算必然压住一级菜单边缘。
+        var mainTopLeftPhysical = _mainRoot != null
+            ? _mainRoot.PointToScreen(new WpfPoint(0, 0))
+            : itemTopLeftPhysical;
+        double mainWidthDip = _mainRoot != null && _mainRoot.ActualWidth > 0
+            ? _mainRoot.ActualWidth
+            : MainMenuWidth;
+
+        var screen = System.Windows.Forms.Screen.FromPoint(
+            new System.Drawing.Point((int)itemTopLeftPhysical.X, (int)itemTopLeftPhysical.Y));
+        var workArea = screen.WorkingArea;
+
+        // 全部换算成物理像素：DIP × DPI。间隙也必须乘 DPI，否则 150% 下只剩 2/3。
         double scaleWidthPhysical = _scaleRoot.DesiredSize.Width * dpi.X;
-        double xPhysical = rightTopPhysical.X;
-        double yPhysical = topLeftPhysical.Y;
+        double mainWidthPhysical = mainWidthDip * dpi.X;
+        double gapPhysical = ScaleMenuGap * dpi.X;
 
+        // 优先放一级菜单右侧（面板右边缘再往右留 gap）；
+        // 右侧放不下（托盘贴屏幕右缘时必然放不下）就翻到左侧（面板左边缘再往左留 gap）。
+        double xPhysical = mainTopLeftPhysical.X + mainWidthPhysical + gapPhysical;
         if (xPhysical + scaleWidthPhysical > workArea.Right)
         {
-            xPhysical = topLeftPhysical.X - scaleWidthPhysical + 2;
+            xPhysical = mainTopLeftPhysical.X - gapPhysical - scaleWidthPhysical;
         }
+
+        // 垂直方向仍与「比例切换」菜单项顶边对齐。
+        double yPhysical = itemTopLeftPhysical.Y;
 
         var dipPoint = PhysicalToDip(new WpfPoint(xPhysical, yPhysical));
         _scalePopup.HorizontalOffset = dipPoint.X;
         _scalePopup.VerticalOffset = dipPoint.Y;
         _scalePopup.IsOpen = true;
 
-        Debug.WriteLine($"[TrayMenu] Open scale at physical=({xPhysical:F0},{yPhysical:F0}), dip=({dipPoint.X:F0},{dipPoint.Y:F0})");
+        Debug.WriteLine($"[TrayMenu] Open scale at physical=({xPhysical:F0},{yPhysical:F0}), mainLeft={mainTopLeftPhysical.X:F0}, mainWidth={mainWidthPhysical:F0}, gap={gapPhysical:F0}");
     }
 
     private WpfPoint GetSafePopupDipPoint(System.Drawing.Point physicalPoint, double menuWidthDip, double menuHeightDip)

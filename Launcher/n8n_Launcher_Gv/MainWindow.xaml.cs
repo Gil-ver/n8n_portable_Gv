@@ -107,7 +107,7 @@ internal class VersionCache
     public string N8nCurrent { get; set; } = "未知";
     public string N8nLatest { get; set; } = "0.0.0";
     public string N8nLatestStatus { get; set; } = "Unknown";
-    public string Launcher { get; set; } = "Gv_1.0.0";
+    public string Launcher { get; set; } = "Gv_1.2.2";
     public string LauncherLatest { get; set; } = "0.0.0";
     public string LauncherLatestStatus { get; set; } = "Unknown";
     public string? LauncherLatestUpdatedAt { get; set; }
@@ -179,6 +179,8 @@ public partial class MainWindow : FluentWindow
     private const int WH_KEYBOARD_LL = 13;
     private const int WM_KEYDOWN    = 0x0100;
     private const int WM_SYSKEYDOWN = 0x0104;
+    private const int WM_KEYUP      = 0x0101;
+    private const int WM_SYSKEYUP   = 0x0105;
     private const int VK_SHIFT = 0x10;
     private const int VK_LWIN  = 0x5B;
     private const int VK_RWIN  = 0x5C;
@@ -202,7 +204,7 @@ public partial class MainWindow : FluentWindow
     private const int IDC_ARROW = 32512;
     private const int SW_RESTORE = 9;
 
-    private const string LAUNCHER_VERSION = "Gv_1.0.0";
+    private const string LAUNCHER_VERSION = "Gv_1.2.2";
     private const string N8nLocalRootUrl = "http://localhost:5678";
     private const string N8nLocalWorkflowsUrl = "http://localhost:5678/home/workflows";
     private const string N8nOfficialSiteUrl = "https://n8n.io/";
@@ -259,6 +261,9 @@ public partial class MainWindow : FluentWindow
     private ImageSource? _restartLaunchTileNormalSource;
     private ImageSource? _restartLaunchTileGrayscaleSource;
     private static readonly Duration LaunchTileAvailabilityTransitionDuration = new(TimeSpan.FromSeconds(0.5));
+
+    /// <summary>控制台操作键禁用时内容层的不透明度（0.4 时文字约落到 #9A9A9A，浅色/深色底都读得出不可点）。</summary>
+    private const double ConsoleTileDisabledContentOpacity = 0.4;
     private int _n8nStartGeneration;
     private bool _isStartingN8n;
     private bool _isStoppingN8n;
@@ -285,6 +290,18 @@ public partial class MainWindow : FluentWindow
     private bool _isCopilotKeyboardHookRegistered;
     private IntPtr _copilotKeyboardHookHandle = IntPtr.Zero;
     private LowLevelKeyboardProc? _copilotKeyboardHookProc;
+    // Copilot 键"一次物理按键 = 一次动作"的按下状态标志。
+    // Windows 长按一个键会以约 30 次/秒的频率持续投递 KEYDOWN / WM_HOTKEY（自动重复），
+    // 若不做配对抑制，长按 1 秒就会执行几十次动作（表现为一瞬间弹出几十个浏览器窗口）。
+    // 置位后必须等到物理抬起才复位：
+    //   · 键盘钩子路径 —— 由 WM_KEYUP / WM_SYSKEYUP 复位；
+    //   · RegisterHotKey 路径 —— 无抬起消息，由 _copilotKeyReleaseWatchTimer 轮询 GetAsyncKeyState 复位。
+    private bool _isCopilotKeyPhysicallyDown;
+    // RegisterHotKey 路径专用：30ms 轮询 F23 是否已物理抬起，抬起后复位上面的标志并自停。
+    private System.Windows.Threading.DispatcherTimer? _copilotKeyReleaseWatchTimer;
+    // "打开 n8n 页面"动作的重入保护：n8n 未运行时该流程会等待 HTTP ready，耗时较长，
+    // 期间若被再次触发会并发启动多个 n8n 或打开多个页面。
+    private bool _isOpenN8nWebFromCopilotKeyRunning;
     private readonly System.Windows.Threading.DispatcherTimer _sleepTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     private DateTimeOffset? _sleepTimerDueAt;
     // 设置重置按钮：常态 ↺ | 一次点击后 ✔（红底）等待 5 秒二次确认；5 秒无操作自动回到常态。
@@ -766,11 +783,13 @@ public partial class MainWindow : FluentWindow
             }
 
             // Copilot 键接管：注册成功时，Win + Shift + F23 按当前设置执行动作。
+            // 不直接调 HandleCopilotKeyAction —— WM_HOTKEY 在长按时会被系统自动重复投递，
+            // 必须先过一遍 HandleCopilotHotkeyMessage 的"一次物理按键 = 一次动作"判定。
             case WM_HOTKEY:
             {
                 if (wParam.ToInt32() == COPILOT_HOTKEY_ID)
                 {
-                    HandleCopilotKeyAction();
+                    HandleCopilotHotkeyMessage();
                     handled = true;
                     return IntPtr.Zero;
                 }
@@ -2049,9 +2068,15 @@ public partial class MainWindow : FluentWindow
         }
 
         if (string.Equals(status, "running", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(status, "new", StringComparison.OrdinalIgnoreCase))
+            string.Equals(status, "new", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(status, "waiting", StringComparison.OrdinalIgnoreCase))
         {
             return new SolidColorBrush(Color.FromRgb(0x25, 0x6B, 0xEB));
+        }
+
+        if (string.Equals(status, "canceled", StringComparison.OrdinalIgnoreCase))
+        {
+            return new SolidColorBrush(Color.FromRgb(0x6B, 0x72, 0x80));
         }
 
         return Brushes.Black;
@@ -2304,6 +2329,14 @@ public partial class MainWindow : FluentWindow
         if (config.WindowScale <= 0)
             config.WindowScale = ComputeAutoScale();
 
+        // 历史档位迁移（2026-09-26）：2/3 → 0.6、1/3 → 0.4；中间版本 0.625 → 0.6、0.375 → 0.4。
+        // 老配置里存的是 0.6666… / 0.3333…，而托盘与设置页的档位匹配容差都是 0.001，
+        // 不迁移会出现「比例菜单 5 项全不打勾 + 设置页下拉框错显 100%」。
+        if (Math.Abs(config.WindowScale - 2.0 / 3.0) < 0.01 || Math.Abs(config.WindowScale - 0.625) < 0.01)
+            config.WindowScale = 0.6;
+        else if (Math.Abs(config.WindowScale - 1.0 / 3.0) < 0.01 || Math.Abs(config.WindowScale - 0.375) < 0.01)
+            config.WindowScale = 0.4;
+
         config.ThemeMode = NormalizeThemeMode(config.ThemeMode);
         config.StartupMode = NormalizeStartupMode(config.StartupMode);
         if (config.StartupMode == StartupModeNone && config.StartWithWindows)
@@ -2501,9 +2534,25 @@ public partial class MainWindow : FluentWindow
 
     private void ConsoleActionTile02_MouseLeftButtonUp(object sender, MouseButtonEventArgs e) => ExportConsoleLogToTextFile();
 
-    private async void ConsoleActionTile03_MouseLeftButtonUp(object sender, MouseButtonEventArgs e) => await StopN8nProcessAsync(showNoProcessMessage: true);
+    // 命名坑：本 handler 挂在 XAML 的 ConsoleActionTile04（停止运行）上，编号与 x:Name 交叉错位。
+    // 守卫与启动面板「停止运行」磁贴同源（LaunchTile03），保证控制台与面板同一套可用性关系。
+    private async void ConsoleActionTile03_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!CanUseStopLaunchTile())
+            return;
 
-    private async void ConsoleActionTile04_MouseLeftButtonUp(object sender, MouseButtonEventArgs e) => await RestartN8nAsync();
+        await StopN8nProcessAsync(showNoProcessMessage: true);
+    }
+
+    // 命名坑：本 handler 挂在 XAML 的 ConsoleActionTile03（重新启动）上，编号与 x:Name 交叉错位。
+    // 守卫与启动面板「重新启动」磁贴同源（LaunchTile04）。
+    private async void ConsoleActionTile04_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!CanUseRestartLaunchTile())
+            return;
+
+        await RestartN8nAsync();
+    }
 
     private async void ConsoleActionTile05_MouseLeftButtonUp(object sender, MouseButtonEventArgs e) => await StartN8nAsync();
 
@@ -3985,18 +4034,95 @@ public partial class MainWindow : FluentWindow
             _isCopilotKeyboardHookRegistered = false;
         }
 
+        // 取消接管后清掉按键配对状态，避免"上次按下未抬起"的残留标志把下次接管后的首击吞掉。
+        _copilotKeyReleaseWatchTimer?.Stop();
+        _isCopilotKeyPhysicallyDown = false;
+
         return true;
     }
 
+    /// <summary>
+    /// WM_HOTKEY（RegisterHotKey 路径）的 Copilot 键处理入口。
+    /// 该路径只有"按下"消息、没有"抬起"消息，且长按时系统会自动重复投递，
+    /// 因此用 <see cref="_isCopilotKeyPhysicallyDown"/> + 30ms 轮询 GetAsyncKeyState 实现
+    /// "一次物理按键 = 一次动作，不论按多久"；松开后再按算新的一次。
+    /// </summary>
+    private void HandleCopilotHotkeyMessage()
+    {
+        if (_isCopilotKeyPhysicallyDown)
+            return;
+
+        _isCopilotKeyPhysicallyDown = true;
+        StartCopilotKeyReleaseWatch();
+        HandleCopilotKeyAction();
+    }
+
+    /// <summary>
+    /// 启动 F23 物理抬起轮询（仅 WM_HOTKEY 路径需要）。
+    /// 30ms 检测一次 GetAsyncKeyState(VK_F23)：仍按着则继续等，已抬起则复位
+    /// <see cref="_isCopilotKeyPhysicallyDown"/> 并自停，下次按下即可再触发一次动作。
+    /// </summary>
+    private void StartCopilotKeyReleaseWatch()
+    {
+        if (_copilotKeyReleaseWatchTimer is null)
+        {
+            _copilotKeyReleaseWatchTimer = new System.Windows.Threading.DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(30)
+            };
+            _copilotKeyReleaseWatchTimer.Tick += (_, _) =>
+            {
+                if (IsKeyPressed((int)VK_F23))
+                    return;
+
+                _copilotKeyReleaseWatchTimer!.Stop();
+                _isCopilotKeyPhysicallyDown = false;
+            };
+        }
+
+        _copilotKeyReleaseWatchTimer.Stop();
+        _copilotKeyReleaseWatchTimer.Start();
+    }
+
+    /// <summary>
+    /// WH_KEYBOARD_LL 低级键盘钩子回调（RegisterHotKey 被占用时的兜底路径）。
+    /// 用 KEYDOWN / KEYUP 配对实现"一次物理按键 = 一次动作，不论按多久"：
+    ///   · KEYDOWN 且标志已置位 → 判定为 Windows 自动重复（长按约 30 次/秒），吞掉不派发动作；
+    ///   · KEYDOWN 且标志未置位 → 置位并派发一次动作；
+    ///   · KEYUP → 复位标志（同样吞掉，避免 F23 漏给系统触发原生 Copilot）。
+    /// </summary>
     private IntPtr CopilotKeyboardHookCallback(int nCode, IntPtr wParam, IntPtr lParam)
     {
-        if (nCode >= 0 && (wParam == (IntPtr)WM_KEYDOWN || wParam == (IntPtr)WM_SYSKEYDOWN))
+        if (nCode >= 0)
         {
-            var hookInfo = Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(lParam);
-            if (hookInfo.vkCode == VK_F23 && IsCopilotModifierPressed())
+            bool isKeyDown = wParam == (IntPtr)WM_KEYDOWN || wParam == (IntPtr)WM_SYSKEYDOWN;
+            bool isKeyUp = wParam == (IntPtr)WM_KEYUP || wParam == (IntPtr)WM_SYSKEYUP;
+
+            if (isKeyDown || isKeyUp)
             {
-                Dispatcher.BeginInvoke(HandleCopilotKeyAction);
-                return (IntPtr)1;
+                var hookInfo = Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(lParam);
+                if (hookInfo.vkCode == VK_F23)
+                {
+                    if (isKeyUp)
+                    {
+                        // 抬起：结束本次按键，下一次按下才算新的一次动作。
+                        _isCopilotKeyPhysicallyDown = false;
+                        return (IntPtr)1;
+                    }
+
+                    if (!IsCopilotModifierPressed())
+                        return CallNextHookEx(_copilotKeyboardHookHandle, nCode, wParam, lParam);
+
+                    if (_isCopilotKeyPhysicallyDown)
+                    {
+                        // 自动重复：吞掉，不派发动作。
+                        return (IntPtr)1;
+                    }
+
+                    _isCopilotKeyPhysicallyDown = true;
+                    Dispatcher.BeginInvoke(HandleCopilotKeyAction);
+                    return (IntPtr)1;
+                }
             }
         }
 
@@ -4031,15 +4157,30 @@ public partial class MainWindow : FluentWindow
             _ = OpenN8nWebFromCopilotKeyAsync();
     }
 
+    /// <summary>
+    /// Copilot 键"打开 n8n 页面"动作。带重入保护：n8n 未运行时该流程需等待 HTTP ready，
+    /// 耗时可达数十秒，期间若被再次触发会并发调用 StartN8nAsync 或重复打开页面。
+    /// </summary>
     private async Task OpenN8nWebFromCopilotKeyAsync()
     {
-        if (IsN8nManagedProcessRunning())
-        {
-            OpenUrl(N8nLocalWorkflowsUrl);
+        if (_isOpenN8nWebFromCopilotKeyRunning)
             return;
-        }
 
-        await StartN8nAsync(openWebWhenReady: true);
+        _isOpenN8nWebFromCopilotKeyRunning = true;
+        try
+        {
+            if (IsN8nManagedProcessRunning())
+            {
+                OpenUrl(N8nLocalWorkflowsUrl);
+                return;
+            }
+
+            await StartN8nAsync(openWebWhenReady: true);
+        }
+        finally
+        {
+            _isOpenN8nWebFromCopilotKeyRunning = false;
+        }
     }
 
     private void ApplySleepTimer(int minutes, bool persist, bool rememberLastApplied = false)
@@ -5052,6 +5193,7 @@ public partial class MainWindow : FluentWindow
         LaunchTileVisualState visualState = MapConsoleStatusToVisualState(consoleStatus);
         UpdateStopLaunchTileAvailability(visualState);
         UpdateRestartLaunchTileAvailability(visualState);
+        UpdateConsoleActionTilesAvailability(visualState);
         ApplyLaunchTileVisualState(visualState);
         UpdateNodeModulesRepairAvailability();
 
@@ -5082,6 +5224,7 @@ public partial class MainWindow : FluentWindow
 
         UpdateStopLaunchTileAvailability(LaunchTileVisualState.NotRunning, animate: false);
         UpdateRestartLaunchTileAvailability(LaunchTileVisualState.NotRunning, animate: false);
+        UpdateConsoleActionTilesAvailability(LaunchTileVisualState.NotRunning, animate: false);
     }
 
     private bool CanUseStartLaunchTile()
@@ -5099,6 +5242,9 @@ public partial class MainWindow : FluentWindow
         LaunchTile02.IsHitTestVisible = canStart;
         LaunchTile02.Cursor = canStart ? System.Windows.Input.Cursors.Hand : System.Windows.Input.Cursors.Arrow;
         LaunchTile02.ToolTip = canStart ? null : "正在处理运行依赖，请稍候";
+
+        // node_modules 修复 / 遮罩状态会改变开始运行的可用性，控制台同名键同步刷新（与面板同源）。
+        UpdateConsoleActionTilesAvailability(_launchTileVisualState, animate: false);
     }
 
     private bool CanUseStopLaunchTile()
@@ -5181,6 +5327,43 @@ public partial class MainWindow : FluentWindow
         _restartLaunchTileGrayscaleImage.Source = _restartLaunchTileGrayscaleSource ?? _restartLaunchTileNormalSource ?? _restartLaunchTileImage.Source;
         SetLaunchTileAvailabilityOpacity(_restartLaunchTileImage, canRestart ? 1.0 : 0.0, animate);
         SetLaunchTileAvailabilityOpacity(_restartLaunchTileGrayscaleImage, canRestart ? 0.0 : 0.7, animate);
+    }
+
+    /// <summary>
+    /// 控制台页右下角三个 n8n 控制键的启用态，与启动面板磁贴 / 托盘菜单保持同一套关系：
+    /// 同一时刻只有一组动作可点 —— 未运行稳态只有「开始运行」亮；
+    /// Starting / Running 只有「停止运行 / 重新启动」亮；中止中 / 修复期三键全灰。
+    /// 命名坑：本组按钮的 x:Name 与 handler 编号交叉错位 ——
+    ///   ConsoleActionTile03 = 重新启动（handler 却叫 Tile04）、
+    ///   ConsoleActionTile04 = 停止运行（handler 却叫 Tile03）、
+    ///   ConsoleActionTile05 = 开始运行（内外一致）。
+    ///   本方法一律按 x:Name 认按钮，改这里时不要被 handler 编号带偏。
+    /// </summary>
+    private void UpdateConsoleActionTilesAvailability(LaunchTileVisualState visualState, bool animate = true)
+    {
+        if (ConsoleActionTile03 is null || ConsoleActionTile04 is null || ConsoleActionTile05 is null)
+            return;
+
+        bool canStopOrRestart = visualState is LaunchTileVisualState.Starting or LaunchTileVisualState.Running;
+        bool canStart = visualState is LaunchTileVisualState.NotRunning && CanUseStartLaunchTile();
+
+        ApplyConsoleTileAvailability(ConsoleActionTile03, canStopOrRestart, animate); // 重新启动
+        ApplyConsoleTileAvailability(ConsoleActionTile04, canStopOrRestart, animate); // 停止运行
+        ApplyConsoleTileAvailability(ConsoleActionTile05, canStart, animate);          // 开始运行
+    }
+
+    /// <summary>
+    /// 单块控制台操作键切到启用/禁用态：只淡出内容层（外层 Grid），
+    /// 底板与文字配色完全不动，因此 UpdateThemeColors() 无需同步改动。
+    /// </summary>
+    private void ApplyConsoleTileAvailability(Border tile, bool enabled, bool animate)
+    {
+        tile.IsEnabled = enabled;
+        tile.IsHitTestVisible = enabled;   // 禁用后 IsMouseOver 恒为 false，悬浮内描边自动不再出现
+        tile.Cursor = enabled ? System.Windows.Input.Cursors.Hand : System.Windows.Input.Cursors.Arrow;
+
+        if (tile.Child is UIElement content)
+            SetLaunchTileAvailabilityOpacity(content, enabled ? 1.0 : ConsoleTileDisabledContentOpacity, animate);
     }
 
     private static ImageSource? CreateGrayscaleImageSource(ImageSource? source)
@@ -7104,7 +7287,13 @@ private void LaunchTile07_MouseLeftButtonUp(object sender, MouseButtonEventArgs 
         }
     }
 
-    /// <summary>根据主屏幕物理高度自动选择初始缩放倍数（不受 DPI 缩放影响）。</summary>
+    /// <summary>
+    /// 根据主屏幕物理高度自动选择初始缩放倍数（不受 DPI 缩放影响）。
+    /// 档位固定整十百分比阶梯（100% / 75% / 60% / 50% / 40%）：窗口尺寸 = 2160×1440 × 倍数，
+    /// 阈值按「目标屏工作区高度放得下且不浪费」标定：1080P / 1024 高 5:4 → 0.6（占工作区 84% / 89%）、768P/720P → 0.4（占 80% / 86%）。
+    ///   1.0 → 2160×1440、0.75 → 1620×1080、0.6 → 1296×864、0.5 → 1080×720、0.4 → 864×576。
+    /// 返回值必须与托盘「比例切换」和设置页下拉框的档位一一对应。
+    /// </summary>
     private static double ComputeAutoScale()
     {
         int height = GetSystemMetrics(SM_CYSCREEN);
@@ -7112,11 +7301,11 @@ private void LaunchTile07_MouseLeftButtonUp(object sender, MouseButtonEventArgs 
 
         if (height > 1800) return 1.0;
         if (height > 1280) return 0.75;
-        if (height > 1040) return 2.0 / 3.0;
-        if (height > 840)  return 0.5;
-        if (height > 640)  return 1.0 / 3.0;
+        if (height > 980)  return 0.6;    // 1080P / 1024 高 5:4 → 1296×864
+        if (height > 840)  return 0.5;    // 900P / 960P → 1080×720
+        if (height > 640)  return 0.4;    // 768P/720P → 864×576
 
-        return 1.0 / 3.0;
+        return 0.4;
     }
 
     /// <summary>

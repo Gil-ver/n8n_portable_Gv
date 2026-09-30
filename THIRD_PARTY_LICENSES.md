@@ -22,7 +22,7 @@
 | 源码仓库 | https://github.com/n8n-io/n8n |
 | 许可原文位置 | 整合包内 `app/node_modules/n8n/LICENSE.md`、`LICENSE_EE.md` |
 | 权威版本来源 | 整合包内 `app/node_modules/n8n/package.json` 的 `version` 字段 |
-| 本文档撰写时随附版本 | v2.14.2 |
+| 本文档撰写时随附版本 | v2.40.7 |
 
 **关于企业版（Enterprise）文件的声明：**
 
@@ -50,7 +50,7 @@ n8n 官方 npm 发布包中，文件名含 `.ee.` 或目录名含 `.ee` 的源�
 | 构建提供方 | Gyan Doshi — https://www.gyan.dev/ffmpeg/builds/ |
 | 构建类型 | `essentials_build`（Windows x64，静态链接） |
 | 许可原文位置 | 整合包内 `runtime/ffmpeg/LICENSE` |
-| 本文档撰写时随附版本 | `2026-04-09-git-d3d0b7a5ee`（对应上游 commit `d3d0b7a5ee`） |
+| 本文档撰写时随附版本 | `2026-09-24-git-5253641e62`（对应上游 commit `5253641e62`） |
 
 **关于 GPL 与源码获取的说明：**
 
@@ -59,7 +59,7 @@ n8n 官方 npm 发布包中，文件名含 `.ee.` 或目录名含 `.ee` 的源�
 依据 GPL 条款，现明确提供其完整源码的获取途径：
 
 - 上游源码仓库：https://github.com/FFmpeg/FFmpeg
-- 对应版本 commit：`d3d0b7a5ee`
+- 对应版本 commit：`5253641e62`
 - 官方源码发布页：https://ffmpeg.org/download.html
 - 本二进制构建的完整编译参数，可在整合包内执行 `runtime/ffmpeg/bin/ffmpeg.exe -version` 查看
 

@@ -3923,11 +3923,14 @@
                                                       FontSize="13"
                                                       FocusVisualStyle="{x:Null}"
                                                       SelectionChanged="SettingsScaleComboBox_SelectionChanged">
+                                                <!-- 档位固定整十百分比阶梯：100% / 75% / 60% / 50% / 40%，对应窗口物理尺寸
+                                                     2160×1440 / 1620×1080 / 1296×864 / 1080×720 / 864×576。
+                                                     Tag 必须与托盘「比例切换」和 ComputeAutoScale() 的返回值一一对应，否则会错显 100%。 -->
                                                 <ComboBoxItem Content="100%" Tag="1"/>
                                                 <ComboBoxItem Content="75%" Tag="0.75"/>
-                                                <ComboBoxItem Content="66.67%" Tag="0.6666666666666666"/>
+                                                <ComboBoxItem Content="60%" Tag="0.6"/>
                                                 <ComboBoxItem Content="50%" Tag="0.5"/>
-                                                <ComboBoxItem Content="33.33%" Tag="0.3333333333333333"/>
+                                                <ComboBoxItem Content="40%" Tag="0.4"/>
                                             </ComboBox>
                                         </Grid>
                                     </Border>

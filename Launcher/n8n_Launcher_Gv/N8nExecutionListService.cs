@@ -8,7 +8,7 @@ namespace n8n_launcher_Gv;
 
 internal sealed class N8nExecutionListService
 {
-    private const int CurrentSchemaVersion = 1;
+    private const int CurrentSchemaVersion = 2;
     private const string CacheFileName = "execution_list_cache.json";
     private static readonly TimeSpan CacheWindow = TimeSpan.FromDays(7);
 
@@ -166,6 +166,7 @@ internal sealed class N8nExecutionListService
 
             string? workflowId = ReadNullableString(reader, "workflow_id");
             string workflowName = ReadNullableString(reader, "workflow_name")?.Trim() ?? "Unknown workflow";
+            string mode = ReadNullableString(reader, "mode")?.Trim() ?? "unknown";
             string status = ReadNullableString(reader, "status")?.Trim() ?? "unknown";
             DateTimeOffset? startedAt = TryReadDateTimeOffset(reader, "startedAt");
             DateTimeOffset? stoppedAt = TryReadDateTimeOffset(reader, "stoppedAt");
@@ -180,6 +181,7 @@ internal sealed class N8nExecutionListService
                 executionId,
                 workflowId,
                 workflowName,
+                mode,
                 status,
                 startedAt,
                 stoppedAt,
@@ -295,6 +297,7 @@ internal sealed class N8nExecutionListService
                    CAST(e.id AS TEXT) AS exec_id,
                    CAST(e.workflowId AS TEXT) AS workflow_id,
                    w.name AS workflow_name,
+                   e.mode,
                    e.status,
                    e.startedAt,
                    e.stoppedAt,
@@ -305,8 +308,8 @@ internal sealed class N8nExecutionListService
                    END AS run_time_secs
                FROM execution_entity e
                LEFT JOIN workflow_entity w ON e.workflowId = w.id
-               WHERE e.mode = 'trigger'
-                 AND e.startedAt IS NOT NULL
+               WHERE e.startedAt IS NOT NULL
+                 AND e.deletedAt IS NULL
                  AND datetime(e.startedAt) BETWEEN datetime('now', '-7 days') AND datetime('now')
                ORDER BY datetime(e.startedAt) DESC, CAST(e.id AS INTEGER) DESC;
                """;
@@ -325,6 +328,7 @@ internal sealed record N8nExecutionListRecord(
     string ExecutionId,
     string? WorkflowId,
     string WorkflowName,
+    string Mode,
     string Status,
     DateTimeOffset? StartedAt,
     DateTimeOffset? StoppedAt,
